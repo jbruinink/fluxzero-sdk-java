@@ -1,0 +1,61 @@
+name: Build LZ4 Native Libraries
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 0"   # weekly Sunday build
+
+jobs:
+  build-lz4:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            arch: x86_64
+            cmake_flags: '-DCMAKE_C_FLAGS="-O3 -mavx2 -msse4.2"'
+            upload_glob: "build/lib/liblz4.*.so*"
+            artifact_name: lz4-linux-x86_64
+
+          # Windows x86_64
+          - os: windows-latest
+            arch: x86_64
+            cmake_flags: ""
+            upload_glob: "build/bin/Release/lz4.dll"
+            artifact_name: lz4-windows-x86_64
+
+          # macOS ARM64
+          - os: macos-latest
+            arch: arm64
+            cmake_flags: '-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_C_FLAGS="-O3"'
+            upload_glob: "build/lib/liblz4.*.dylib"
+            artifact_name: lz4-macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout LZ4 source
+        uses: actions/checkout@v4
+        with:
+          repository: lz4/lz4
+          path: lz4-src
+
+      - name: Install build tools (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure CMake
+        run: |
+          cmake -S lz4-src -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload artifact ${{ matrix.artifact_name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.upload_glob }}
