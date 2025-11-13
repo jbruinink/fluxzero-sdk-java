@@ -2,6 +2,9 @@ name: Update LZ4 Native Libraries
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - lz4
   schedule:
     - cron: "0 3 * * *"
 
@@ -40,8 +43,7 @@ jobs:
 
       - name: Generate JNI headers
         run: |
-          javac -h common/src/main/jni \
-            common/src/main/java/io/fluxzero/common/compression/LZ4Codec.java
+          javac -h common/src/main/jni common/src/main/java/io/fluxzero/common/serialization/compression/LZ4Codec.java
 
       - name: Build on Linux
         if: runner.os == 'Linux'
@@ -52,6 +54,7 @@ jobs:
             lz4/lib/lz4.c \
             lz4/lib/lz4hc.c \
             lz4/lib/xxhash.c \
+            -I"lz4/lib" \
             -I"${JAVA_HOME}/include" \
             -I"${JAVA_HOME}/include/linux" \
             -fPIC \
@@ -65,6 +68,7 @@ jobs:
             lz4/lib/lz4.c \
             lz4/lib/lz4hc.c \
             lz4/lib/xxhash.c \
+            -I"lz4/lib" \
             -I"${JAVA_HOME}/include" \
             -I"${JAVA_HOME}/include/darwin" \
             -fPIC \
@@ -84,13 +88,15 @@ jobs:
         shell: msys2 {0}
         run: |
           gcc -shared -O3 \
-            common/src/main/jni/lz4jni.c \
-            lz4/lib/lz4.c \
-            lz4/lib/lz4hc.c \
-            lz4/lib/xxhash.c \
-            -I"${JAVA_HOME}/include" \
-            -I"${JAVA_HOME}/include/win32" \
-            -o ${{ matrix.output_file }}
+          common/src/main/jni/lz4jni.c \
+          lz4/lib/lz4.c \
+          lz4/lib/lz4hc.c \
+          lz4/lib/xxhash.c \
+          -I"lz4/lib" \
+          -I"${JAVA_HOME}/include" \
+          -I"${JAVA_HOME}/include/win32" \
+          -Wl,--no-insert-timestamp \
+          -o ${{ matrix.output_file }}
 
       - name: Upload native binaries
         uses: actions/upload-artifact@v4
@@ -115,13 +121,14 @@ jobs:
 
       - name: Copy binaries into resources
         run: |
-          mkdir -p src/main/resources/native
-          cp -Rv native-libs/* src/main/resources/native/
+          mkdir -p common/src/main/resources/native
+          cp -Rv native-libs/* common/src/main/resources/native/
 
       - name: Detect changes
         id: changes
         run: |
-          if git diff --quiet src/main/resources/native; then
+          git add common/src/main/resources/native
+          if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
