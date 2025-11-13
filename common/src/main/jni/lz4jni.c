@@ -37,7 +37,7 @@ JNIEXPORT jint JNICALL
 Java_io_fluxzero_common_serialization_compression_LZ4Codec_nCompress(
         JNIEnv *env, jclass clazz,
         jbyteArray srcArray, jint srcOff, jint srcLen,
-        jbyteArray dstArray, jint dstOff, jint maxDstLen) {
+        jbyteArray dstArray, jint dstOff, jint maxDestLen) {
     UNUSED(clazz);
 
     if (srcArray == NULL || dstArray == NULL) {
