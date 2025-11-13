@@ -54,6 +54,7 @@ jobs:
             lz4/lib/lz4.c \
             lz4/lib/lz4hc.c \
             lz4/lib/xxhash.c \
+            -I"lz4/lib"
             -I"${JAVA_HOME}/include" \
             -I"${JAVA_HOME}/include/linux" \
             -fPIC \
@@ -67,6 +68,7 @@ jobs:
             lz4/lib/lz4.c \
             lz4/lib/lz4hc.c \
             lz4/lib/xxhash.c \
+            -I"lz4/lib"
             -I"${JAVA_HOME}/include" \
             -I"${JAVA_HOME}/include/darwin" \
             -fPIC \
@@ -90,6 +92,7 @@ jobs:
             lz4/lib/lz4.c \
             lz4/lib/lz4hc.c \
             lz4/lib/xxhash.c \
+            -I"lz4/lib"
             -I"${JAVA_HOME}/include" \
             -I"${JAVA_HOME}/include/win32" \
             -o ${{ matrix.output_file }}
