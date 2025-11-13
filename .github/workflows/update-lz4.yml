@@ -2,6 +2,9 @@ name: Update LZ4 Native Libraries
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - lz4
   schedule:
     - cron: "0 3 * * *"
 
@@ -41,7 +44,7 @@ jobs:
       - name: Generate JNI headers
         run: |
           javac -h common/src/main/jni \
-            common/src/main/java/io/fluxzero/compression/LZ4Codec.java
+            common/src/main/java/io/fluxzero/common/serialization/compression/LZ4Codec.java
 
       - name: Build on Linux
         if: runner.os == 'Linux'
