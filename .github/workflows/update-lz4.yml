@@ -122,13 +122,16 @@ jobs:
         run: |
           mkdir -p common/src/main/resources/native
           cp -Rv native-libs/* common/src/main/resources/native/
-          git status
-          if git status --porcelain | grep -q "common/src/main/resources/native"; then
-            echo "changed=true"
-          else
-            echo "changed=false"
-          fi
 
+      - name: Detect changes
+        id: changes
+        run: |
+          git add common/src/main/resources/native
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Pull Request
         if: steps.changes.outputs.changed == 'true'
