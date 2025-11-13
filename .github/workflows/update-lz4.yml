@@ -41,7 +41,7 @@ jobs:
       - name: Generate JNI headers
         run: |
           javac -h common/src/main/jni \
-            common/src/main/java/io/fluxzero/compression/LZ4Codec.java
+            common/src/main/java/io/fluxzero/common/compression/LZ4Codec.java
 
       - name: Build on Linux
         if: runner.os == 'Linux'
