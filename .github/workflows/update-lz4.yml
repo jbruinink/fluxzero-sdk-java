@@ -120,20 +120,14 @@ jobs:
 
       - name: Copy binaries into resources
         run: |
-          mkdir -p src/main/resources/native
-          cp -Rv native-libs/* src/main/resources/native/
-
-      - name: Detect changes
-        id: changes
-        run: |
-          mkdir -p src/main/resources/native
-          
-          # Check if HEAD differs from working tree in this directory
-          if git diff --quiet HEAD -- src/main/resources/native; then
-            echo "changed=false" >> $GITHUB_OUTPUT
+          mkdir -p common/src/main/resources/native
+          cp -Rv native-libs/* common/src/main/resources/native/
+          if git status --porcelain | grep -q "common/src/main/resources/native"; then
+            echo "changed=true"
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=false"
           fi
+
 
       - name: Create Pull Request
         if: steps.changes.outputs.changed == 'true'
