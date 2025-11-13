@@ -48,6 +48,7 @@ jobs:
       - name: Build on Linux
         if: runner.os == 'Linux'
         run: |
+          env
           sudo apt-get update && sudo apt-get install -y build-essential
           gcc -shared -O3 \
             common/src/main/jni/lz4jni.c \
