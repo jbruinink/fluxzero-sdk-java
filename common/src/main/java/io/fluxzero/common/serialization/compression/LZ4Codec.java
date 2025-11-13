@@ -139,21 +139,14 @@ public final class LZ4Codec {
         String os = detectOS();
         String arch = detectArch();
 
-        String dir = switch (os) {
-            case "linux"   -> "linux-" + arch;
-            case "macos"   -> "macos-" + arch;
-            case "windows" -> "windows-" + arch;
-            default -> throw new IllegalStateException("Unsupported OS: " + os);
-        };
-
-        String libFileName = switch (os) {
+        String file = switch (os) {
             case "linux"   -> "lz4jni.so";
             case "macos"   -> "lz4jni.dylib";
             case "windows" -> "lz4jni.dll";
             default -> throw new IllegalStateException("Unsupported OS: " + os);
         };
 
-        String resourcePath = "/native/" + dir + "/" + libFileName;
+        String resourcePath = "/native/" + os + "-" + arch + "/" + file;
 
         try {
             Path extracted = extractResource(resourcePath);
