@@ -126,7 +126,10 @@ jobs:
       - name: Detect changes
         id: changes
         run: |
-          if git diff --quiet src/main/resources/native; then
+          mkdir -p src/main/resources/native
+          
+          # Check if HEAD differs from working tree in this directory
+          if git diff --quiet HEAD -- src/main/resources/native; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
