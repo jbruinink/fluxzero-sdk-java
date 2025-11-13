@@ -122,7 +122,7 @@ jobs:
         run: |
           mkdir -p common/src/main/resources/native
           cp -Rv native-libs/* common/src/main/resources/native/
-          git status --porcelain
+          git status
           if git status --porcelain | grep -q "common/src/main/resources/native"; then
             echo "changed=true"
           else
