@@ -8,19 +8,20 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
  * JNI-based LZ4 codec with a 4-byte big-endian length prefix.
- *
+ * <p>
  * Data format:
- *   [0..3]   = original uncompressed length (int, big-endian)
- *   [4..end] = raw LZ4-compressed bytes
- *
+ * [0..3]   = original uncompressed length (int, big-endian)
+ * [4..end] = raw LZ4-compressed bytes
+ * <p>
  * The JNI library must expose:
- *   - nCompressBound
- *   - nCompress
- *   - nDecompress
+ * - nCompressBound
+ * - nCompress
+ * - nDecompress
  */
 public final class LZ4Codec {
 
@@ -28,31 +29,20 @@ public final class LZ4Codec {
         loadNativeLibrary();
     }
 
-    private LZ4Codec() {}
+    private LZ4Codec() {
+    }
 
     private static native int nCompressBound(int inputSize);
 
-    private static native int nCompress(
-            byte[] src, int srcOff, int srcLen,
-            byte[] dest, int destOff, int maxDestLen
-    );
+    private static native int nCompress(byte[] src, int srcLen, byte[] dst, int maxDstLen);
 
-    private static native int nDecompress(
-            byte[] src, int srcOff, int srcLen,
-            byte[] dest, int destOff, int maxDestLen
-    );
-
-    // ------------------------------------------------------------
-    // Public API
-    // ------------------------------------------------------------
+    private static native int nDecompress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff, int maxDstLen);
 
     /**
      * Compresses the given data using LZ4 and prefixes it with a 4-byte
      * big-endian integer containing the original size.
-     *
-     * Output format:
-     *   [0..3]   = uncompressed length
-     *   [4..n]   = raw LZ4 block
+     * @param input the data to compress
+     * @return the compressed data, prefixed with the original size
      */
     public static byte[] compress(byte[] input) {
         if (input == null) {
@@ -60,34 +50,22 @@ public final class LZ4Codec {
         }
 
         int originalSize = input.length;
-        int max = nCompressBound(originalSize);
-        if (max <= 0) {
-            throw new IllegalStateException("LZ4_compressBound returned " + max);
+        int maxSize = nCompressBound(originalSize);
+        if (maxSize <= 0) {
+            throw new IllegalStateException("LZ4_compressBound returned " + maxSize);
         }
 
-        // Allocate enough room for prefix + compressed data
-        byte[] out = new byte[4 + max];
-
-        // Write original size prefix
-        ByteBuffer.wrap(out, 0, 4)
-                .order(ByteOrder.BIG_ENDIAN)
-                .putInt(originalSize);
-
-        // Compress after the header
-        int written = nCompress(
-                input, 0, originalSize,
-                out, 4, max
-        );
+        byte[] compressed = new byte[maxSize];
+        int written = nCompress(input, originalSize, compressed, maxSize);
 
         if (written <= 0) {
-            throw new RuntimeException("LZ4_compress_default failed, code=" + written);
+            throw new IllegalStateException("LZ4_compress_default failed, code=" + written);
         }
 
-        // Trim to exact output size
-        int total = 4 + written;
-        byte[] trimmed = new byte[total];
-        System.arraycopy(out, 0, trimmed, 0, total);
-        return trimmed;
+        byte[] out = new byte[written + 4];
+        ByteBuffer.wrap(out).order(ByteOrder.BIG_ENDIAN).putInt(originalSize);
+        System.arraycopy(compressed, 0, out, 4, written);
+        return out;
     }
 
     /**
@@ -102,34 +80,24 @@ public final class LZ4Codec {
             throw new IllegalArgumentException("Compressed block too small to contain header");
         }
 
-        // Extract original size from prefix
-        int originalSize = ByteBuffer.wrap(compressed, 0, 4)
-                .order(ByteOrder.BIG_ENDIAN)
-                .getInt();
+        int originalSize = ByteBuffer.wrap(compressed, 0, 4).order(ByteOrder.BIG_ENDIAN).getInt();
 
         if (originalSize < 0) {
             throw new IllegalArgumentException("Invalid original size: " + originalSize);
         }
 
         byte[] out = new byte[originalSize];
-
         int compressedSize = compressed.length - 4;
-
-        int written = nDecompress(
-                compressed, 4, compressedSize,
-                out, 0, originalSize
-        );
+        int written = nDecompress(compressed, 4, compressedSize, out, 0, originalSize);
 
         if (written < 0) {
-            throw new RuntimeException("LZ4_decompress_safe failed, code=" + written);
+            throw new IllegalStateException("LZ4_decompress_safe failed, code=" + written);
         }
 
-        // If decompressed size matches expected, return directly
         if (written == originalSize) {
             return out;
         }
 
-        // If LZ4 returned a different length (unusual), trim
         byte[] trimmed = new byte[written];
         System.arraycopy(out, 0, trimmed, 0, written);
         return trimmed;
@@ -139,14 +107,21 @@ public final class LZ4Codec {
         String os = detectOS();
         String arch = detectArch();
 
-        String file = switch (os) {
-            case "linux"   -> "lz4jni.so";
-            case "macos"   -> "lz4jni.dylib";
+        String dir = switch (os) {
+            case "linux" -> "linux-" + arch;
+            case "macos" -> "macos-" + arch;
+            case "windows" -> "windows-" + arch;
+            default -> throw new IllegalStateException("Unsupported OS: " + os);
+        };
+
+        String libFileName = switch (os) {
+            case "linux" -> "lz4jni.so";
+            case "macos" -> "lz4jni.dylib";
             case "windows" -> "lz4jni.dll";
             default -> throw new IllegalStateException("Unsupported OS: " + os);
         };
 
-        String resourcePath = "/native/" + os + "-" + arch + "/" + file;
+        String resourcePath = "/native/" + dir + "/" + libFileName;
 
         try {
             Path extracted = extractResource(resourcePath);

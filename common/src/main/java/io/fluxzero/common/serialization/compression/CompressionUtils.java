@@ -16,6 +16,9 @@ package io.fluxzero.common.serialization.compression;
 
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -51,6 +54,9 @@ import java.util.zip.ZipException;
  */
 public class CompressionUtils {
 
+    private static final LZ4Compressor lz4Compressor = LZ4Factory.fastestInstance().fastCompressor();
+    private static final LZ4FastDecompressor lz4Decompressor = LZ4Factory.fastestInstance().fastDecompressor();
+
     /**
      * Compresses the given byte array using {@link CompressionAlgorithm#LZ4} by default.
      *
@@ -74,7 +80,10 @@ public class CompressionUtils {
             case NONE -> uncompressed;
             case LZ4 -> {
                 byte[] compressed = LZ4Codec.compress(uncompressed);
-                yield ByteBuffer.allocate(compressed.length + 4).putInt(uncompressed.length).put(compressed).array();
+                byte[] result = new byte[compressed.length + 4];
+                ByteBuffer.wrap(result).putInt(uncompressed.length);
+                System.arraycopy(compressed, 0, result, 4, compressed.length);
+                yield result;
             }
             case GZIP -> {
                 ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
